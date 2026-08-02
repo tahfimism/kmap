@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karnaugh Map Minimizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        cream: {
+                            bg: '#FDFBF7',
+                            card: '#FFFFFF',
+                            border: '#E8E5DF',
+                            text: '#202020',
+                            muted: '#6E6A64',
+                        },
+                        charcoal: {
+                            bg: '#121212',
+                            card: '#1A1A1A',
+                            border: '#282828',
+                            text: '#E5E5E5',
+                            muted: '#8A8A8A',
+                        },
+                        accent: {
+                            DEFAULT: '#10B981', // Emerald
+                            hover: '#059669',
+                            muted: '#10B9811A'
+                        },
+                        logic: {
+                            indigo: '#6366F1',
+                            amber: '#F59E0B',
+                            rose: '#F43F5E',
+                            sky: '#0EA5E9',
+                            purple: '#A855F7',
+                        }
+                    },
+                    transitionTimingFunction: {
+                        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                @apply bg-cream-bg text-cream-text transition-colors duration-300;
+            }
+            .dark body {
+                @apply bg-charcoal-bg text-charcoal-text;
+            }
+        }
+
+        @layer components {
+            .utility-card {
+                @apply bg-cream-card border border-cream-border rounded-2xl transition-all duration-[220ms] ease-spring;
+            }
+            .utility-card:hover {
+                @apply -translate-y-0.5 scale-[1.015] shadow-md;
+            }
+            .dark .utility-card {
+                @apply bg-charcoal-card border-charcoal-border;
+            }
+            .dark .utility-card:hover {
+                @apply shadow-none border-charcoal-muted;
+            }
+
+            .kmap-cell {
+                @apply w-14 h-14 text-center align-middle cursor-pointer select-none border border-cream-border text-xl font-bold transition-all duration-150;
+            }
+            .dark .kmap-cell {
+                @apply border-charcoal-border;
+            }
+            .kmap-cell:active { @apply scale-95; }
+            .kmap-cell:hover { @apply bg-black/5; }
+            .dark .kmap-cell:hover { @apply bg-white/5; }
+
+            .val-0 { @apply text-cream-muted font-normal; }
+            .dark .val-0 { @apply text-charcoal-muted; }
+            
+            .val-1 { @apply text-cream-text font-extrabold; }
+            .dark .val-1 { @apply text-charcoal-text; }
+            
+            .val-X { @apply text-accent; }
+
+            .kmap-cell.selected {
+                @apply ring-4 ring-amber-500/50 bg-amber-500/10 border-amber-500/30;
+            }
+            .dark .kmap-cell.selected {
+                @apply ring-4 ring-amber-400/50 bg-amber-400/10 border-amber-400/30;
+            }
+        }
+
+        /* Fullscreen Pattern Overlay */
+        #fullscreen-overlay {
+            opacity: 0;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.25s ease-out;
+        }
+        #fullscreen-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        #fullscreen-content {
+            transform: scale(0.95);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out;
+        }
+        #fullscreen-overlay.active #fullscreen-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .pulse-live {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Hide scrollbar for horizontal scrolling containers */
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <header class="w-full max-w-5xl mx-auto px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-xl font-bold tracking-tight text-cream-text dark:text-charcoal-text flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-accent pulse-live"></div>
+                Logic Routine
+            </h1>
+            <p class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mt-1">
+                Quine-McCluskey Optimization
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Practice Mode Toggle -->
+            <button id="practice-toggle" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-neutral-100 dark:bg-neutral-800/50 text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text border border-cream-border dark:border-charcoal-border transition-all flex items-center gap-1.5 shadow-sm">
+                <svg class="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                <span>Practice Mode</span>
+            </button>
+
+            <!-- Var Selection Tabs -->
+            <div class="flex bg-neutral-100 dark:bg-neutral-800/50 p-1 rounded-lg border border-cream-border dark:border-charcoal-border">
+                <button class="var-btn active px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text transition-all" data-vars="2">2V</button>
+                <button class="var-btn px-3 py-1.5 text-xs font-semibold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-vars="3">3V</button>
+                <button class="var-btn px-3 py-1.5 text-xs font-semibold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-vars="4">4V</button>
+                <button class="var-btn px-3 py-1.5 text-xs font-semibold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-vars="5">5V</button>
+            </div>
+            
+            <button id="theme-toggle" class="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-800/50 text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text border border-cream-border dark:border-charcoal-border transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-5xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <section class="lg:col-span-7 flex flex-col gap-4">
+            
+            <!-- Practice Banner -->
+            <div id="practice-banner-card" class="utility-card p-5 bg-accent/5 border border-accent/20 flex flex-col gap-3 hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <span class="text-xs font-extrabold uppercase tracking-widest text-accent flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                        Practice Mode
+                    </span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <select id="practice-difficulty" class="bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded-md px-2 py-1 text-[10px] font-bold text-cream-text dark:text-charcoal-text outline-none cursor-pointer">
+                            <option value="easy">Easy (Adjacency)</option>
+                            <option value="edge_wrap">Medium (Edge Wrapping)</option>
+                            <option value="dont_care_guide">Medium (Don't-Care Guide)</option>
+                            <option value="redundancy">Hard (Redundancy Check)</option>
+                            <option value="pyq">Preset PYQ Problems</option>
+                            <option value="pyq_custom">Custom PYQ JSON File</option>
+                        </select>
+                        <input type="file" id="pyq-file-input" accept=".json" class="hidden">
+                        <button id="pyq-load-btn" class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-accent hover:bg-accent/10 border border-accent/20 rounded-md transition-all hidden">Load JSON</button>
+                        <button id="practice-quit-btn" class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 rounded-md transition-all">Quit</button>
+                    </div>
+                </div>
+                <h2 id="practice-prompt" class="text-base font-bold text-cream-text dark:text-charcoal-text leading-snug">
+                    Practice: Group the cells to solve for target Y
+                </h2>
+                <div class="text-[11px] text-cream-muted dark:text-charcoal-muted flex flex-col gap-1">
+                    <p>• Click cells to select/toggle them, or drag to select a rectangular area.</p>
+                    <p>• Make sure the selected group is valid and click <strong class="text-accent">Add Loop</strong>.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-1">
+                    <div id="selection-feedback" class="text-xs font-semibold text-cream-muted dark:text-charcoal-muted bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border px-3 py-1.5 rounded-lg flex-grow transition-all">
+                        No cells selected.
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button id="practice-add-loop-btn" class="px-3 py-1.5 text-xs font-bold bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Add Loop</button>
+                        <button id="practice-clear-selection-btn" class="px-3 py-1.5 text-xs font-bold border border-cream-border dark:border-charcoal-border hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg text-cream-text dark:text-charcoal-text transition-all">Clear Selection</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Methods Tabs -->
+            <div id="input-methods-card" class="utility-card p-4 flex flex-col gap-3">
+                <div class="flex flex-col sm:flex-row gap-2 border-b border-cream-border dark:border-charcoal-border pb-2 justify-between sm:items-center">
+                    <span class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Input Method</span>
+                    <div class="flex flex-wrap gap-1" id="input-tabs">
+                        <button class="input-tab-btn active px-2.5 py-1 text-xs font-semibold rounded bg-neutral-100 dark:bg-neutral-800 text-cream-text dark:text-charcoal-text" data-tab="interactive">Grid Click</button>
+                        <button class="input-tab-btn px-2.5 py-1 text-xs font-semibold rounded text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text" data-tab="truthtable">Truth Table</button>
+                        <button class="input-tab-btn px-2.5 py-1 text-xs font-semibold rounded text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text" data-tab="minmax">Min/Maxterm</button>
+                        <button class="input-tab-btn px-2.5 py-1 text-xs font-semibold rounded text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text" data-tab="expression">Boolean</button>
+                    </div>
+                </div>
+                <div id="input-tab-content" class="text-xs">
+                    <div id="tab-interactive" class="input-tab-panel text-cream-muted dark:text-charcoal-muted">
+                        Click cells in the grid below to cycle outputs: 0 &rarr; 1 &rarr; X.
+                    </div>
+                    <div id="tab-truthtable" class="input-tab-panel hidden max-h-48 overflow-y-auto scrollbar-none">
+                        <!-- Dynamic Truth Table rendered here -->
+                    </div>
+                    <div id="tab-minmax" class="input-tab-panel hidden flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold w-20 text-cream-muted dark:text-charcoal-muted uppercase tracking-wider text-[10px]">Minterms (1):</span>
+                            <input type="text" id="input-minterms" placeholder="e.g., 0, 1, 3" class="bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded px-2.5 py-1 text-xs w-full focus:outline-none focus:border-accent">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold w-20 text-cream-muted dark:text-charcoal-muted uppercase tracking-wider text-[10px]">Don't Cares (X):</span>
+                            <input type="text" id="input-dontcares" placeholder="e.g., 2" class="bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded px-2.5 py-1 text-xs w-full focus:outline-none focus:border-accent">
+                        </div>
+                    </div>
+                    <div id="tab-expression" class="input-tab-panel hidden flex items-center gap-2">
+                        <span class="font-bold w-20 text-cream-muted dark:text-charcoal-muted uppercase tracking-wider text-[10px]">Boolean:</span>
+                        <input type="text" id="input-expression" placeholder="e.g., A'B + BC'D" class="bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded px-2.5 py-1 text-xs w-full focus:outline-none focus:border-accent">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Banner -->
+            <div class="p-4 rounded-xl border border-cream-border dark:border-charcoal-border bg-neutral-50/40 dark:bg-neutral-900/20 text-xs font-semibold flex flex-row items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2 text-cream-muted dark:text-charcoal-muted">
+                    <svg class="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                    <span id="control-banner-text">Tap cells to cycle 0 &rarr; 1 &rarr; X</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-clear" class="px-3 py-1.5 rounded-lg border border-cream-border dark:border-charcoal-border text-cream-text dark:text-charcoal-text hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">Clear</button>
+                    <button id="btn-fill" class="px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white transition-colors border border-transparent shadow-sm">Fill 1s</button>
+                </div>
+            </div>
+
+            <!-- Visualization Canvas -->
+            <div class="utility-card p-6 flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden group">
+                
+                <div class="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                    <button id="btn-tiled-view" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider">Tiled Wrap View</span>
+                    </button>
+                </div>
+
+                <button id="btn-fullscreen" class="absolute top-4 right-4 p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border opacity-0 group-hover:opacity-100 transition-opacity hover:text-accent shadow-sm z-30">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                </button>
+
+                <div id="maps-wrapper" class="relative flex flex-wrap justify-center gap-8 w-full overflow-x-auto scrollbar-none py-4 px-2">
+                    <!-- Grids dynamically injected here -->
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-5 flex flex-col gap-6">
+            
+            <!-- Normal Mode Sidebar -->
+            <div id="normal-sidebar" class="flex flex-col gap-6 w-full">
+                <!-- Output Display with SOP/POS -->
+                <div class="utility-card p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Minimized Output</h2>
+                        <div class="flex bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg border border-cream-border dark:border-charcoal-border text-[9px] font-bold">
+                            <button id="opt-sop" class="active px-2 py-1 rounded bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text shadow-sm transition-all">SOP</button>
+                            <button id="opt-pos" class="px-2 py-1 rounded text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all">POS</button>
+                        </div>
+                    </div>
+                    <div id="result-expression" class="text-2xl md:text-3xl font-bold tracking-tight text-cream-text dark:text-charcoal-text leading-tight">
+                        <span class="text-cream-muted dark:text-charcoal-muted font-normal mr-2">Y =</span> 0
+                    </div>
+                </div>
+
+                <!-- Logic Circuit Diagram -->
+                <div id="circuit-card" class="utility-card p-5 flex flex-col gap-3">
+                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Logic Gate Circuit</h2>
+                    <div id="circuit-container" class="w-full h-44 bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded-xl overflow-hidden flex items-center justify-center text-xs text-cream-muted dark:text-charcoal-muted p-4">
+                        <span>No output active to generate circuit.</span>
+                    </div>
+                </div>
+
+                <!-- Step-by-Step Explanation -->
+                <div id="learning-notes-card" class="utility-card p-5">
+                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-3">Tutor Walkthrough</h2>
+                    <div id="learning-notes" class="flex flex-col gap-3 max-h-[300px] overflow-y-auto scrollbar-none text-xs leading-relaxed text-cream-muted dark:text-charcoal-muted">
+                        <p>Toggle values to start grouping and generate tutorials.</p>
+                    </div>
+                </div>
+
+                <!-- Group loops breakdown -->
+                <div>
+                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-3 px-1">Coverage Groups</h2>
+                    <div id="steps-container" class="flex flex-col gap-3">
+                        <!-- Steps injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Practice Mode Sidebar -->
+            <div id="practice-sidebar" class="flex flex-col gap-6 w-full hidden">
+                <!-- User Loops list -->
+                <div class="utility-card p-5">
+                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-3">Your Loops</h2>
+                    <div id="practice-loops-container" class="flex flex-col gap-2 max-h-[220px] overflow-y-auto scrollbar-none">
+                        <div class="text-xs text-cream-muted dark:text-charcoal-muted italic">No loops drawn yet. Drag or select cells and click Add Loop.</div>
+                    </div>
+                </div>
+
+                <!-- Current Expression -->
+                <div class="utility-card p-5">
+                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-3">Your Expression</h2>
+                    <div id="practice-expression" class="text-2xl font-bold tracking-tight text-cream-text dark:text-charcoal-text leading-tight">
+                        <span class="text-cream-muted dark:text-charcoal-muted font-normal mr-2">Y =</span> 0
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col gap-2">
+                    <button id="practice-submit-btn" class="w-full py-3 bg-accent hover:bg-accent-hover text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-[0.98]">Check Answer</button>
+                    <button id="practice-clear-loops-btn" class="w-full py-3 bg-neutral-100 dark:bg-neutral-800 text-cream-text dark:text-charcoal-text border border-cream-border dark:border-charcoal-border rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 font-bold text-sm transition-all active:scale-[0.98]">Clear All Loops</button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <div id="fullscreen-overlay" class="fixed inset-0 z-50 bg-cream-bg/90 dark:bg-charcoal-bg/90 flex flex-col items-center justify-center p-4 md:p-8">
+        <div class="w-full max-w-6xl flex justify-between items-center mb-8">
+            <h2 class="text-xl font-bold tracking-tight text-cream-text dark:text-charcoal-text" id="fs-title">Pattern Viewer</h2>
+            <button id="btn-close-fs" class="p-2 rounded-full bg-cream-card dark:bg-charcoal-card border border-cream-border dark:border-charcoal-border hover:text-rose-500 transition-colors shadow-sm">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div id="fullscreen-content" class="utility-card w-full max-w-6xl p-8 md:p-12 flex-grow flex items-center justify-center overflow-auto shadow-2xl">
+            <!-- Map clone injected here -->
+        </div>
+    </div>
+
+    <div id="practice-modal" class="fixed inset-0 z-50 bg-cream-bg/95 dark:bg-charcoal-bg/95 flex flex-col items-center justify-center p-4 md:p-8 opacity-0 pointer-events-none transition-all duration-300">
+        <div id="practice-modal-content" class="utility-card w-full max-w-2xl p-6 md:p-8 flex flex-col gap-4 shadow-2xl scale-95 opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-center pb-2 border-b border-cream-border dark:border-charcoal-border">
+                <h2 class="text-lg font-bold text-cream-text dark:text-charcoal-text">Practice Grade</h2>
+                <button id="practice-modal-close-btn" class="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-cream-muted dark:text-charcoal-muted hover:text-rose-500">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center text-center py-2" id="practice-grade-badge-container">
+                <!-- Big Emoji/Badge based on performance -->
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
+                <!-- Left: Checklists of grading rules -->
+                <div class="flex flex-col gap-3 justify-center">
+                    <h3 class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Grading Checklist</h3>
+                    <div class="flex flex-col gap-3" id="practice-checklist">
+                        <!-- Dynamic checklist items -->
+                    </div>
+                </div>
+                <!-- Right: Details / missed opportunities -->
+                <div class="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-cream-border dark:border-charcoal-border flex flex-col gap-2 text-xs" id="practice-grade-details">
+                    <!-- Missed terms or too many loops feedback -->
+                </div>
+            </div>
+
+            <!-- Comparison Section -->
+            <div class="flex flex-col gap-2 border-t border-cream-border dark:border-charcoal-border pt-4">
+                <h3 class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-1">Comparison</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-[9px] font-extrabold tracking-wider text-cream-muted dark:text-charcoal-muted uppercase">Your Work</span>
+                        <div id="practice-modal-user-map" class="border border-cream-border dark:border-charcoal-border rounded-xl p-2 bg-white dark:bg-charcoal-card max-w-full overflow-hidden"></div>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-[9px] font-extrabold tracking-wider text-cream-muted dark:text-charcoal-muted uppercase">Optimal Solution</span>
+                        <div id="practice-modal-opt-map" class="border border-cream-border dark:border-charcoal-border rounded-xl p-2 bg-white dark:bg-charcoal-card max-w-full overflow-hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-cream-border dark:border-charcoal-border mt-2">
+                <button id="practice-retry-btn" class="px-4 py-2 border border-cream-border dark:border-charcoal-border hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg text-cream-text dark:text-charcoal-text font-bold text-xs transition-colors">Retry This Map</button>
+                <button id="practice-next-btn" class="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-bold text-xs transition-colors shadow-sm">Next Challenge</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/state.js"></script>
+    <script src="js/solver.js"></script>
+    <script src="js/kmap.js"></script>
+    <script src="js/svg.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/inputs.js"></script>
+    <script src="js/tiled.js"></script>
+    <script src="js/tutorial.js"></script>
+    <script src="js/circuit.js"></script>
+    <script src="js/problems.js"></script>
+    <script src="js/practice.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

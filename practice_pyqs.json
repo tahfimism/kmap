@@ -1,0 +1,62 @@
+[
+  {
+    "id": "pyq_2023_final_q1",
+    "source": "Final Exam 2023, Q1a",
+    "N": 3,
+    "minterms": [0, 2, 4, 6],
+    "dontcares": [],
+    "difficulty": "easy",
+    "hints": [
+      "Look at columns 00 and 10 across both rows.",
+      "Are all these 4 cells adjacent? K-maps wrap left-to-right."
+    ]
+  },
+  {
+    "id": "pyq_2023_final_q1b",
+    "source": "Final Exam 2023, Q1b (Don't Cares)",
+    "N": 3,
+    "minterms": [1, 2, 5],
+    "dontcares": [6],
+    "difficulty": "medium",
+    "hints": [
+      "Can we group the minterm at 2 with the don't-care at 6?",
+      "The minterms at 1 and 5 can be grouped vertically."
+    ]
+  },
+  {
+    "id": "pyq_2022_final_q2",
+    "source": "Final Exam 2022, Q2 (4-Variable Wrap)",
+    "N": 4,
+    "minterms": [0, 1, 2, 3, 8, 9, 10, 11],
+    "dontcares": [],
+    "difficulty": "medium",
+    "hints": [
+      "Look at rows 00 and 10. They represent A'B' and AB' respectively.",
+      "Are these two rows adjacent on a toroidal map?"
+    ]
+  },
+  {
+    "id": "pyq_2021_midterm_q4",
+    "source": "Midterm 2021, Q4 (Consensus Theorem)",
+    "N": 3,
+    "minterms": [1, 3, 5],
+    "dontcares": [2, 6],
+    "difficulty": "hard",
+    "hints": [
+      "Think about which don't-cares are useful.",
+      "Naive grouping of {1, 3} and {1, 5} is valid, but can we form larger groups of 4 using don't-cares?"
+    ]
+  },
+  {
+    "id": "pyq_2020_class_test_q2",
+    "source": "Class Test 2020, Q2 (Corner Wrap)",
+    "N": 4,
+    "minterms": [0, 2, 8, 10, 5, 7, 13, 15],
+    "dontcares": [],
+    "difficulty": "hard",
+    "hints": [
+      "There are two groups of 4 here.",
+      "One is a clear central block of 4. What about the other?"
+    ]
+  }
+]
