@@ -252,17 +252,14 @@
                 </div>
             </div>
 
-            <!-- Controls & Brush Toolbar -->
-            <div class="p-3.5 rounded-xl border border-cream-border dark:border-charcoal-border bg-neutral-50/40 dark:bg-neutral-900/20 text-xs font-semibold flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-sm">
-                <!-- Brush Selection Segmented Control -->
-                <div class="flex items-center gap-1.5 bg-neutral-200/60 dark:bg-neutral-800 p-1 rounded-lg border border-cream-border dark:border-charcoal-border">
-                    <button class="brush-btn active px-2.5 py-1 text-[11px] font-bold rounded-md bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text shadow-sm transition-all" data-brush="click" title="Click or type 0/1/X">Pointer</button>
-                    <button class="brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-brush="paint_1" title="Drag across cells to paint 1s">Paint 1</button>
-                    <button class="brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-brush="paint_0" title="Drag across cells to paint 0s">Paint 0</button>
-                    <button class="brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-brush="paint_x" title="Drag across cells to paint Xs">Paint X</button>
+            <!-- Controls Toolbar -->
+            <div class="p-3.5 rounded-xl border border-cream-border dark:border-charcoal-border bg-neutral-50/40 dark:bg-neutral-900/20 text-xs font-semibold flex flex-row items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2 text-cream-muted dark:text-charcoal-muted">
+                    <svg class="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                    <span id="control-banner-text">Tap cells to cycle 0 &rarr; 1 &rarr; X</span>
                 </div>
 
-                <div class="flex items-center gap-2 justify-end">
+                <div class="flex items-center gap-2">
                     <button id="btn-undo" class="p-1.5 rounded-lg border border-cream-border dark:border-charcoal-border text-cream-text dark:text-charcoal-text hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" title="Undo (Ctrl+Z)">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m0 0l-4-4m4 4l4-4M3 10l4 4m-4-4l4-4"></path></svg>
                     </button>
@@ -302,12 +299,6 @@
 
                 <div id="maps-wrapper" class="relative flex flex-wrap justify-center gap-8 w-full overflow-x-auto scrollbar-none py-8 px-2">
                     <!-- Grids dynamically injected here -->
-                </div>
-
-                <!-- Spatial Status Bar Indicator -->
-                <div class="mt-4 pt-3 border-t border-cream-border/50 dark:border-charcoal-border/30 w-full flex items-center justify-between text-[10px] font-mono text-cream-muted dark:text-charcoal-muted">
-                    <span id="status-bar-text">STATUS // ACTIVE CALCULATION</span>
-                    <span>ARROW KEYS: NAVIGATE | 0, 1, X: SET</span>
                 </div>
             </div>
         </section>
