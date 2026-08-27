@@ -19,6 +19,55 @@
     window.KMapCustomProblemsIndex = 0;
     window.KMapDefaultProblemsIndex = 0;
 
+    // Practice Undo / Redo Stacks
+    let practiceHistoryUndo = [];
+    let practiceHistoryRedo = [];
+
+    function pushPracticeHistory() {
+        practiceHistoryUndo.push({
+            selectedCells: Array.from(practiceState.selectedCells),
+            userLoops: practiceState.userLoops.map(loop => [...loop])
+        });
+        if (practiceHistoryUndo.length > 50) {
+            practiceHistoryUndo.shift();
+        }
+        practiceHistoryRedo = [];
+    }
+
+    function undoPractice() {
+        if (practiceHistoryUndo.length === 0) return false;
+        const prev = practiceHistoryUndo.pop();
+        practiceHistoryRedo.push({
+            selectedCells: Array.from(practiceState.selectedCells),
+            userLoops: practiceState.userLoops.map(loop => [...loop])
+        });
+        practiceState.selectedCells = new Set(prev.selectedCells);
+        practiceState.userLoops = prev.userLoops.map(l => [...l]);
+        
+        updateSelection();
+        renderUserLoopsList();
+        updatePracticeExpression();
+        drawPracticeSVGs(document.getElementById('maps-wrapper'));
+        return true;
+    }
+
+    function redoPractice() {
+        if (practiceHistoryRedo.length === 0) return false;
+        const next = practiceHistoryRedo.pop();
+        practiceHistoryUndo.push({
+            selectedCells: Array.from(practiceState.selectedCells),
+            userLoops: practiceState.userLoops.map(loop => [...loop])
+        });
+        practiceState.selectedCells = new Set(next.selectedCells);
+        practiceState.userLoops = next.userLoops.map(l => [...l]);
+
+        updateSelection();
+        renderUserLoopsList();
+        updatePracticeExpression();
+        drawPracticeSVGs(document.getElementById('maps-wrapper'));
+        return true;
+    }
+
     // Base targeted templates for concept-driven generation
     const templates = {
         easy: [
@@ -524,6 +573,7 @@
         container.querySelectorAll('.delete-loop-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 let idx = parseInt(btn.getAttribute('data-idx'));
+                pushPracticeHistory();
                 practiceState.userLoops.splice(idx, 1);
                 renderUserLoopsList();
                 updatePracticeExpression();
@@ -617,6 +667,9 @@
             let valIndex = parseInt(cell.getAttribute('data-val'));
             if (valIndex === practiceState.startCellIdx) return;
             
+            if (!practiceState.dragActive) {
+                pushPracticeHistory();
+            }
             practiceState.dragActive = true;
             practiceState.selectedCells.clear();
             
@@ -633,6 +686,7 @@
             
             // If it was a simple click without dragging
             if (!practiceState.dragActive && practiceState.startCellIdx !== null) {
+                pushPracticeHistory();
                 let idx = practiceState.startCellIdx;
                 if (practiceState.selectedCells.has(idx)) {
                     practiceState.selectedCells.delete(idx);
@@ -654,7 +708,7 @@
                 let validation = validateSelection(cellsArray);
                 
                 if (validation.valid) {
-                    // Add to user loops (avoid exact duplicates)
+                    pushPracticeHistory();
                     let sortedStr = [...cellsArray].sort((a,b)=>a-b).join(',');
                     let exists = practiceState.userLoops.some(loop => {
                         return [...loop].sort((a,b)=>a-b).join(',') === sortedStr;
@@ -676,8 +730,11 @@
         const clearSelBtn = document.getElementById('practice-clear-selection-btn');
         if (clearSelBtn) {
             clearSelBtn.addEventListener('click', () => {
-                practiceState.selectedCells.clear();
-                updateSelection();
+                if (practiceState.selectedCells.size > 0) {
+                    pushPracticeHistory();
+                    practiceState.selectedCells.clear();
+                    updateSelection();
+                }
             });
         }
         
@@ -685,10 +742,13 @@
         const clearLoopsBtn = document.getElementById('practice-clear-loops-btn');
         if (clearLoopsBtn) {
             clearLoopsBtn.addEventListener('click', () => {
-                practiceState.userLoops = [];
-                renderUserLoopsList();
-                updatePracticeExpression();
-                drawPracticeSVGs(mapsWrapper);
+                if (practiceState.userLoops.length > 0) {
+                    pushPracticeHistory();
+                    practiceState.userLoops = [];
+                    renderUserLoopsList();
+                    updatePracticeExpression();
+                    drawPracticeSVGs(mapsWrapper);
+                }
             });
         }
         
@@ -942,32 +1002,31 @@
         `;
         detailsContainer.innerHTML = detailsHtml;
         
-        // Draw Comparison Maps in Modal
-        let userMapEl = document.getElementById('practice-modal-user-map');
-        let optMapEl = document.getElementById('practice-modal-opt-map');
-        
-        if (userMapEl && optMapEl) {
-            // Render grids
-            Grid.renderGrids(userMapEl, () => {});
-            Grid.renderGrids(optMapEl, () => {});
-            
-            // Draw user loops on user map
-            drawPracticeSVGs(userMapEl);
-            
-            // Draw optimal loops on optimal map
-            let vizOptSolution = optSolution.map((pi, idx) => ({ 
-                pi: pi, 
-                color: state.groupColors[idx % state.groupColors.length] 
-            }));
-            window.KMapSVG.drawSVGs(vizOptSolution, optMapEl);
-        }
-        
         // Display the modal
         let modal = document.getElementById('practice-modal');
         let modalContent = document.getElementById('practice-modal-content');
         if (modal && modalContent) {
             modal.classList.remove('opacity-0', 'pointer-events-none');
             modalContent.classList.remove('opacity-0', 'scale-95');
+        }
+
+        // Draw Comparison Maps in Modal after layout reflow
+        let userMapEl = document.getElementById('practice-modal-user-map');
+        let optMapEl = document.getElementById('practice-modal-opt-map');
+        
+        if (userMapEl && optMapEl) {
+            Grid.renderGrids(userMapEl, () => {});
+            Grid.renderGrids(optMapEl, () => {});
+            
+            let vizOptSolution = optSolution.map((pi, idx) => ({ 
+                pi: pi, 
+                color: state.groupColors[idx % state.groupColors.length] 
+            }));
+
+            setTimeout(() => {
+                drawPracticeSVGs(userMapEl);
+                window.KMapSVG.drawSVGs(vizOptSolution, optMapEl);
+            }, 60);
         }
     }
 
@@ -982,6 +1041,22 @@
                 hidePracticeModal();
             });
         }
+
+        // Close on clicking backdrop outside modal content
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    hidePracticeModal();
+                }
+            });
+        }
+
+        // Close on pressing Escape
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('pointer-events-none')) {
+                hidePracticeModal();
+            }
+        });
         
         const retryBtn = document.getElementById('practice-retry-btn');
         if (retryBtn) {
@@ -1016,6 +1091,9 @@
 
     window.KMapPractice = {
         practiceState,
+        generateChallenge,
+        undoPractice,
+        redoPractice,
         loopToPi,
         validateSelection,
         drawPracticeSVGs,

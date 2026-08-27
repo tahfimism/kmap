@@ -252,34 +252,62 @@
                 </div>
             </div>
 
-            <!-- Controls Banner -->
-            <div class="p-4 rounded-xl border border-cream-border dark:border-charcoal-border bg-neutral-50/40 dark:bg-neutral-900/20 text-xs font-semibold flex flex-row items-center justify-between shadow-sm">
-                <div class="flex items-center gap-2 text-cream-muted dark:text-charcoal-muted">
-                    <svg class="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
-                    <span id="control-banner-text">Tap cells to cycle 0 &rarr; 1 &rarr; X</span>
+            <!-- Controls & Brush Toolbar -->
+            <div class="p-3.5 rounded-xl border border-cream-border dark:border-charcoal-border bg-neutral-50/40 dark:bg-neutral-900/20 text-xs font-semibold flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-sm">
+                <!-- Brush Selection Segmented Control -->
+                <div class="flex items-center gap-1.5 bg-neutral-200/60 dark:bg-neutral-800 p-1 rounded-lg border border-cream-border dark:border-charcoal-border">
+                    <button class="brush-btn active px-2.5 py-1 text-[11px] font-bold rounded-md bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text shadow-sm transition-all" data-brush="click" title="Click or type 0/1/X">Pointer</button>
+                    <button class="brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-brush="paint_1" title="Drag across cells to paint 1s">Paint 1</button>
+                    <button class="brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-brush="paint_0" title="Drag across cells to paint 0s">Paint 0</button>
+                    <button class="brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all" data-brush="paint_x" title="Drag across cells to paint Xs">Paint X</button>
                 </div>
-                <div class="flex gap-2">
-                    <button id="btn-clear" class="px-3 py-1.5 rounded-lg border border-cream-border dark:border-charcoal-border text-cream-text dark:text-charcoal-text hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">Clear</button>
-                    <button id="btn-fill" class="px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white transition-colors border border-transparent shadow-sm">Fill 1s</button>
+
+                <div class="flex items-center gap-2 justify-end">
+                    <button id="btn-undo" class="p-1.5 rounded-lg border border-cream-border dark:border-charcoal-border text-cream-text dark:text-charcoal-text hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" title="Undo (Ctrl+Z)">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m0 0l-4-4m4 4l4-4M3 10l4 4m-4-4l4-4"></path></svg>
+                    </button>
+                    <button id="btn-redo" class="p-1.5 rounded-lg border border-cream-border dark:border-charcoal-border text-cream-text dark:text-charcoal-text hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" title="Redo (Ctrl+Y)">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a5 5 0 00-5 5v2m0 0l4-4m-4 4l-4-4m20-6l-4 4m4-4l-4-4"></path></svg>
+                    </button>
+                    <button id="btn-clear" class="px-2.5 py-1.5 rounded-lg border border-cream-border dark:border-charcoal-border text-cream-text dark:text-charcoal-text hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">Clear</button>
+                    <button id="btn-fill" class="px-2.5 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white transition-colors border border-transparent shadow-sm">Fill 1s</button>
                 </div>
             </div>
 
             <!-- Visualization Canvas -->
             <div class="utility-card p-6 flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden group">
                 
-                <div class="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                    <button id="btn-tiled-view" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm flex items-center gap-1.5">
+                <div class="absolute top-4 left-4 flex gap-2 z-30">
+                    <button id="btn-tiled-view" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm flex items-center gap-1.5" title="View Toroidal Wrapping">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider">Tiled Wrap View</span>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider">Tiled Wrap</span>
+                    </button>
+                    <button id="btn-export-latex" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm flex items-center gap-1.5" title="Copy LaTeX Formula">
+                        <span class="text-[10px] font-mono font-extrabold">LaTeX</span>
+                    </button>
+                    <button id="btn-export-png" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm flex items-center gap-1.5" title="Download High-Res PNG">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider">PNG</span>
                     </button>
                 </div>
 
-                <button id="btn-fullscreen" class="absolute top-4 right-4 p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border opacity-0 group-hover:opacity-100 transition-opacity hover:text-accent shadow-sm z-30">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                </button>
+                <div class="absolute top-4 right-4 flex gap-2 z-30">
+                    <button id="btn-share-link" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm flex items-center gap-1.5" title="Copy URL Share Link">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider">Share</span>
+                    </button>
+                    <button id="btn-fullscreen" class="p-2 bg-cream-bg dark:bg-charcoal-bg rounded-lg border border-cream-border dark:border-charcoal-border hover:text-accent shadow-sm" title="Full Screen View">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    </button>
+                </div>
 
-                <div id="maps-wrapper" class="relative flex flex-wrap justify-center gap-8 w-full overflow-x-auto scrollbar-none py-4 px-2">
+                <div id="maps-wrapper" class="relative flex flex-wrap justify-center gap-8 w-full overflow-x-auto scrollbar-none py-8 px-2">
                     <!-- Grids dynamically injected here -->
+                </div>
+
+                <!-- Spatial Status Bar Indicator -->
+                <div class="mt-4 pt-3 border-t border-cream-border/50 dark:border-charcoal-border/30 w-full flex items-center justify-between text-[10px] font-mono text-cream-muted dark:text-charcoal-muted">
+                    <span id="status-bar-text">STATUS // ACTIVE CALCULATION</span>
+                    <span>ARROW KEYS: NAVIGATE | 0, 1, X: SET</span>
                 </div>
             </div>
         </section>
@@ -302,19 +330,23 @@
                     </div>
                 </div>
 
+                <!-- Step-by-Step Explanation (Tutor Walkthrough) -->
+                <div id="learning-notes-card" class="utility-card p-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Tutor Walkthrough</h2>
+                    </div>
+                    <!-- Dynamic Playback Toolbar -->
+                    <div id="playback-controls" class="hidden"></div>
+                    <div id="learning-notes" class="flex flex-col gap-3 max-h-[300px] overflow-y-auto scrollbar-none text-xs leading-relaxed text-cream-muted dark:text-charcoal-muted">
+                        <p>Toggle values to start grouping and generate tutorials.</p>
+                    </div>
+                </div>
+
                 <!-- Logic Circuit Diagram -->
                 <div id="circuit-card" class="utility-card p-5 flex flex-col gap-3">
                     <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Logic Gate Circuit</h2>
                     <div id="circuit-container" class="w-full h-44 bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded-xl overflow-hidden flex items-center justify-center text-xs text-cream-muted dark:text-charcoal-muted p-4">
                         <span>No output active to generate circuit.</span>
-                    </div>
-                </div>
-
-                <!-- Step-by-Step Explanation -->
-                <div id="learning-notes-card" class="utility-card p-5">
-                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-3">Tutor Walkthrough</h2>
-                    <div id="learning-notes" class="flex flex-col gap-3 max-h-[300px] overflow-y-auto scrollbar-none text-xs leading-relaxed text-cream-muted dark:text-charcoal-muted">
-                        <p>Toggle values to start grouping and generate tutorials.</p>
                     </div>
                 </div>
 
@@ -348,6 +380,7 @@
                 <!-- Action Buttons -->
                 <div class="flex flex-col gap-2">
                     <button id="practice-submit-btn" class="w-full py-3 bg-accent hover:bg-accent-hover text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-[0.98]">Check Answer</button>
+                    <button id="practice-generate-btn" class="w-full py-3 bg-neutral-100 dark:bg-neutral-800 text-cream-text dark:text-charcoal-text border border-cream-border dark:border-charcoal-border rounded-xl hover:bg-accent/10 hover:border-accent font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5">🎲 New Challenge</button>
                     <button id="practice-clear-loops-btn" class="w-full py-3 bg-neutral-100 dark:bg-neutral-800 text-cream-text dark:text-charcoal-text border border-cream-border dark:border-charcoal-border rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 font-bold text-sm transition-all active:scale-[0.98]">Clear All Loops</button>
                 </div>
             </div>
@@ -367,50 +400,55 @@
         </div>
     </div>
 
-    <div id="practice-modal" class="fixed inset-0 z-50 bg-cream-bg/95 dark:bg-charcoal-bg/95 flex flex-col items-center justify-center p-4 md:p-8 opacity-0 pointer-events-none transition-all duration-300">
-        <div id="practice-modal-content" class="utility-card w-full max-w-2xl p-6 md:p-8 flex flex-col gap-4 shadow-2xl scale-95 opacity-0 transition-all duration-300">
-            <div class="flex justify-between items-center pb-2 border-b border-cream-border dark:border-charcoal-border">
-                <h2 class="text-lg font-bold text-cream-text dark:text-charcoal-text">Practice Grade</h2>
-                <button id="practice-modal-close-btn" class="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-cream-muted dark:text-charcoal-muted hover:text-rose-500">
+    <div id="practice-modal" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-3 sm:p-6 opacity-0 pointer-events-none transition-all duration-300 overflow-y-auto">
+        <div id="practice-modal-content" class="utility-card w-full max-w-xl max-h-[88vh] flex flex-col p-5 sm:p-6 shadow-2xl scale-95 opacity-0 transition-all duration-300 overflow-hidden my-auto">
+            <!-- Modal Header (Sticky) -->
+            <div class="flex justify-between items-center pb-2 border-b border-cream-border dark:border-charcoal-border shrink-0">
+                <h2 class="text-base font-extrabold uppercase tracking-wider text-cream-text dark:text-charcoal-text">Practice Grade</h2>
+                <button id="practice-modal-close-btn" class="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-cream-muted dark:text-charcoal-muted hover:text-rose-500" title="Close (Esc)">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             
-            <div class="flex flex-col items-center justify-center text-center py-2" id="practice-grade-badge-container">
-                <!-- Big Emoji/Badge based on performance -->
-            </div>
+            <!-- Modal Scrollable Body -->
+            <div class="overflow-y-auto pr-1 flex-grow scrollbar-none flex flex-col gap-4 py-2">
+                <div class="flex flex-col items-center justify-center text-center py-1" id="practice-grade-badge-container">
+                    <!-- Big Emoji/Badge based on performance -->
+                </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
-                <!-- Left: Checklists of grading rules -->
-                <div class="flex flex-col gap-3 justify-center">
-                    <h3 class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Grading Checklist</h3>
-                    <div class="flex flex-col gap-3" id="practice-checklist">
-                        <!-- Dynamic checklist items -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-1">
+                    <!-- Left: Checklists of grading rules -->
+                    <div class="flex flex-col gap-2.5 justify-center">
+                        <h3 class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted">Grading Checklist</h3>
+                        <div class="flex flex-col gap-2.5" id="practice-checklist">
+                            <!-- Dynamic checklist items -->
+                        </div>
+                    </div>
+                    <!-- Right: Details / missed opportunities -->
+                    <div class="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-cream-border dark:border-charcoal-border flex flex-col gap-2 text-xs" id="practice-grade-details">
+                        <!-- Missed terms or too many loops feedback -->
                     </div>
                 </div>
-                <!-- Right: Details / missed opportunities -->
-                <div class="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-cream-border dark:border-charcoal-border flex flex-col gap-2 text-xs" id="practice-grade-details">
-                    <!-- Missed terms or too many loops feedback -->
-                </div>
-            </div>
 
-            <!-- Comparison Section -->
-            <div class="flex flex-col gap-2 border-t border-cream-border dark:border-charcoal-border pt-4">
-                <h3 class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-1">Comparison</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="flex flex-col items-center gap-2">
-                        <span class="text-[9px] font-extrabold tracking-wider text-cream-muted dark:text-charcoal-muted uppercase">Your Work</span>
-                        <div id="practice-modal-user-map" class="border border-cream-border dark:border-charcoal-border rounded-xl p-2 bg-white dark:bg-charcoal-card max-w-full overflow-hidden"></div>
-                    </div>
-                    <div class="flex flex-col items-center gap-2">
-                        <span class="text-[9px] font-extrabold tracking-wider text-cream-muted dark:text-charcoal-muted uppercase">Optimal Solution</span>
-                        <div id="practice-modal-opt-map" class="border border-cream-border dark:border-charcoal-border rounded-xl p-2 bg-white dark:bg-charcoal-card max-w-full overflow-hidden"></div>
+                <!-- Comparison Section -->
+                <div class="flex flex-col gap-2 border-t border-cream-border dark:border-charcoal-border pt-3">
+                    <h3 class="text-[10px] font-extrabold uppercase tracking-widest text-cream-muted dark:text-charcoal-muted mb-0.5">Comparison</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="flex flex-col items-center gap-1.5 p-2 bg-neutral-50 dark:bg-neutral-900/30 rounded-xl border border-cream-border dark:border-charcoal-border">
+                            <span class="text-[9px] font-extrabold tracking-wider text-cream-muted dark:text-charcoal-muted uppercase">Your Loops</span>
+                            <div id="practice-modal-user-map" class="max-w-full overflow-x-auto flex justify-center scale-90 sm:scale-95 transform origin-top"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 p-2 bg-neutral-50 dark:bg-neutral-900/30 rounded-xl border border-cream-border dark:border-charcoal-border">
+                            <span class="text-[9px] font-extrabold tracking-wider text-cream-muted dark:text-charcoal-muted uppercase">Optimal Solution</span>
+                            <div id="practice-modal-opt-map" class="max-w-full overflow-x-auto flex justify-center scale-90 sm:scale-95 transform origin-top"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-3 border-t border-cream-border dark:border-charcoal-border mt-2">
-                <button id="practice-retry-btn" class="px-4 py-2 border border-cream-border dark:border-charcoal-border hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg text-cream-text dark:text-charcoal-text font-bold text-xs transition-colors">Retry This Map</button>
+            <!-- Modal Footer (Sticky) -->
+            <div class="flex justify-end gap-3 pt-3 border-t border-cream-border dark:border-charcoal-border mt-1 shrink-0">
+                <button id="practice-retry-btn" class="px-3.5 py-2 border border-cream-border dark:border-charcoal-border hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg text-cream-text dark:text-charcoal-text font-bold text-xs transition-colors">Retry This Map</button>
                 <button id="practice-next-btn" class="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-bold text-xs transition-colors shadow-sm">Next Challenge</button>
             </div>
         </div>
@@ -427,6 +465,7 @@
     <script src="js/circuit.js"></script>
     <script src="js/problems.js"></script>
     <script src="js/practice.js"></script>
+    <script src="js/export.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

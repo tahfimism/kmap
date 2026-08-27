@@ -15,43 +15,51 @@
         let Practice = window.KMapPractice;
         let Tiled = window.KMapTiled;
 
-        let result = state.exprType === 'POS'
-            ? Solver.solveQMPOS(state.stateData, state.N)
-            : Solver.solveQM(state.stateData, state.N);
-        
-        let vizSolution = result.solution.map((pi, idx) => ({ 
-            pi: pi, 
-            color: state.groupColors[idx % state.groupColors.length] 
-        }));
-        state.setSolution(vizSolution);
+        // Async background solver dispatch (with instantaneous fallback)
+        Solver.solveAsync(state.stateData, state.N, state.exprType, function(result) {
+            let vizSolution = result.solution.map((pi, idx) => ({ 
+                pi: pi, 
+                color: state.groupColors[idx % state.groupColors.length] 
+            }));
+            state.setSolution(vizSolution);
 
-        if (state.practiceMode) {
-            Practice.drawPracticeSVGs(mapsWrapper);
-        } else {
-            UI.renderOutput(result.PIs, result.EPIs, vizSolution, resultExpr, stepsContainer);
-            SVG.drawSVGs(vizSolution, mapsWrapper);
-        }
-
-        // Render logic circuit diagram
-        Circuit.drawCircuit(vizSolution, state.N, state.exprType);
-
-        // Update step-by-step tutorial
-        Tutorial.updateTutorial(result.PIs, result.EPIs, vizSolution, state.stateData, state.N, state.exprType);
-        
-        if (fsOverlay.classList.contains('active')) {
-            if (fsOverlay.dataset.mode === 'tiled') {
-                Tiled.drawTiledSVGs(vizSolution, fsContent);
+            if (state.practiceMode) {
+                Practice.drawPracticeSVGs(mapsWrapper);
             } else {
-                const clone = document.getElementById('fs-maps-wrapper');
-                if (clone) {
-                    if (state.practiceMode) {
-                        Practice.drawPracticeSVGs(clone);
-                    } else {
-                        SVG.drawSVGs(vizSolution, clone);
+                UI.renderOutput(result.PIs, result.EPIs, vizSolution, resultExpr, stepsContainer);
+                SVG.drawSVGs(vizSolution, mapsWrapper);
+            }
+
+            // Render logic circuit diagram with live signal levels
+            Circuit.drawCircuit(vizSolution, state.N, state.exprType);
+
+            // Update step-by-step tutorial walkthrough
+            Tutorial.updateTutorial(result.PIs, result.EPIs, vizSolution, state.stateData, state.N, state.exprType);
+            
+            // Sync with Fullscreen viewer if open
+            if (fsOverlay && fsOverlay.classList.contains('active')) {
+                if (fsOverlay.dataset.mode === 'tiled') {
+                    Tiled.drawTiledSVGs(vizSolution, fsContent);
+                } else {
+                    const clone = document.getElementById('fs-maps-wrapper');
+                    if (clone) {
+                        if (state.practiceMode) {
+                            Practice.drawPracticeSVGs(clone);
+                        } else {
+                            SVG.drawSVGs(vizSolution, clone);
+                        }
                     }
                 }
             }
-        }
+
+            // Sync URL hash state seamlessly
+            if (!state.practiceMode && window.history && window.history.replaceState) {
+                const hash = state.serializeToHash();
+                if (hash) {
+                    window.history.replaceState(null, '', '#' + hash);
+                }
+            }
+        });
     }
 
     // Subscribe solve & render to state changes
@@ -60,7 +68,7 @@
         solveAndRender();
     });
 
-    // Initialization
+    // Global Initialization
     document.addEventListener('DOMContentLoaded', () => {
         let state = window.KMapState;
         let Grid = window.KMapGrid;
@@ -68,20 +76,99 @@
         let Inputs = window.KMapInputs;
         let Tiled = window.KMapTiled;
         let Practice = window.KMapPractice;
+        let Export = window.KMapExport;
 
-        // Theme toggle
-        document.getElementById('theme-toggle').addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            setTimeout(() => {
-                if (state.practiceMode) {
-                    Practice.drawPracticeSVGs(mapsWrapper);
+        // 1. Theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                setTimeout(() => {
+                    if (state.practiceMode) {
+                        Practice.drawPracticeSVGs(mapsWrapper);
+                    } else {
+                        SVG.drawSVGs(state.currentSolutionMap, mapsWrapper);
+                    }
+                }, 100);
+            });
+        }
+
+        // 2. Undo / Redo buttons & keyboard shortcuts
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+
+        function handleUndo() {
+            if (state.practiceMode) {
+                Practice.undoPractice();
+            } else {
+                state.undo();
+            }
+        }
+
+        function handleRedo() {
+            if (state.practiceMode) {
+                Practice.redoPractice();
+            } else {
+                state.redo();
+            }
+        }
+
+        if (btnUndo) btnUndo.addEventListener('click', handleUndo);
+        if (btnRedo) btnRedo.addEventListener('click', handleRedo);
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                if (e.shiftKey) {
+                    handleRedo();
                 } else {
-                    SVG.drawSVGs(state.currentSolutionMap, mapsWrapper);
+                    handleUndo();
                 }
-            }, 100);
+                e.preventDefault();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                handleRedo();
+                e.preventDefault();
+            }
         });
 
-        // Variable buttons
+        // 3. Brush Segmented Controls
+        const brushButtons = document.querySelectorAll('.brush-btn');
+        brushButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                brushButtons.forEach(b => {
+                    b.className = 'brush-btn px-2.5 py-1 text-[11px] font-bold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all';
+                });
+                const target = e.currentTarget;
+                target.className = 'brush-btn active px-2.5 py-1 text-[11px] font-bold rounded-md bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text shadow-sm transition-all';
+                state.setBrushMode(target.getAttribute('data-brush'));
+            });
+        });
+
+        // 4. Export Buttons
+        const btnLatex = document.getElementById('btn-export-latex');
+        if (btnLatex) {
+            btnLatex.addEventListener('click', () => {
+                const latex = Export.generateLaTeX(state.currentSolutionMap, state.N, state.exprType);
+                Export.copyToClipboard(latex, 'LaTeX formula copied to clipboard!');
+            });
+        }
+
+        const btnPng = document.getElementById('btn-export-png');
+        if (btnPng) {
+            btnPng.addEventListener('click', () => {
+                Export.exportPNG();
+            });
+        }
+
+        const btnShare = document.getElementById('btn-share-link');
+        if (btnShare) {
+            btnShare.addEventListener('click', () => {
+                const hash = state.serializeToHash();
+                const shareUrl = window.location.origin + window.location.pathname + '#' + hash;
+                Export.copyToClipboard(shareUrl, 'Shareable problem URL copied!');
+            });
+        }
+
+        // 5. Variable count tabs (2V, 3V, 4V, 5V)
         document.querySelectorAll('.var-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.var-btn').forEach(b => {
@@ -89,7 +176,7 @@
                 });
                 const target = e.target;
                 target.className = 'var-btn active px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text border border-cream-border dark:border-charcoal-border transition-all';
-                let newN = parseInt(target.getAttribute('data-vars'));
+                let newN = parseInt(target.getAttribute('data-vars'), 10);
                 state.init(newN);
                 if (state.practiceMode) {
                     Grid.renderGrids(mapsWrapper, () => {});
@@ -102,67 +189,67 @@
             });
         });
 
-        document.getElementById('btn-clear').addEventListener('click', () => {
-            state.clearAll();
-        });
-        
-        document.getElementById('btn-fill').addEventListener('click', () => {
-            state.fillAllOnes();
-        });
+        // 6. Clear and Fill 1s
+        const btnClear = document.getElementById('btn-clear');
+        if (btnClear) btnClear.addEventListener('click', () => state.clearAll());
 
-        // Fullscreen Logic
-        document.getElementById('btn-fullscreen').addEventListener('click', () => {
-            fsOverlay.classList.add('active');
-            fsOverlay.dataset.mode = 'normal';
-            document.getElementById('fs-title').innerText = 'Pattern Viewer';
-            fsContent.innerHTML = ''; // Clear old
-            
-            // Clone the maps wrapper into fullscreen
-            const clone = mapsWrapper.cloneNode(true);
-            clone.id = 'fs-maps-wrapper';
-            // Adjust scale for fullscreen
-            clone.classList.remove('overflow-x-auto');
-            clone.classList.add('scale-110', 'md:scale-125', 'transform-origin-center'); 
-            fsContent.appendChild(clone);
-            
-            // Re-bind click events on the clone
-            clone.querySelectorAll('.kmap-cell').forEach(cell => {
-                cell.addEventListener('click', function() {
-                    let valIndex = parseInt(this.getAttribute('data-val'));
-                    state.setData(valIndex, (state.stateData[valIndex] + 1) % 3);
+        const btnFill = document.getElementById('btn-fill');
+        if (btnFill) btnFill.addEventListener('click', () => state.fillAllOnes());
+
+        // 7. Fullscreen & Tiled Views
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        if (btnFullscreen) {
+            btnFullscreen.addEventListener('click', () => {
+                fsOverlay.classList.add('active');
+                fsOverlay.dataset.mode = 'normal';
+                document.getElementById('fs-title').innerText = 'Pattern Viewer';
+                fsContent.innerHTML = '';
+                
+                const clone = mapsWrapper.cloneNode(true);
+                clone.id = 'fs-maps-wrapper';
+                clone.classList.remove('overflow-x-auto');
+                clone.classList.add('scale-110', 'md:scale-125', 'transform-origin-center'); 
+                fsContent.appendChild(clone);
+                
+                clone.querySelectorAll('.kmap-cell').forEach(cell => {
+                    cell.addEventListener('click', function() {
+                        let valIndex = parseInt(this.getAttribute('data-val'));
+                        state.setData(valIndex, (state.stateData[valIndex] + 1) % 3);
+                    });
                 });
+                
+                setTimeout(() => SVG.drawSVGs(state.currentSolutionMap, clone), 50);
             });
-            
-            // Redraw SVGs immediately for the clone
-            setTimeout(() => SVG.drawSVGs(state.currentSolutionMap, clone), 50);
-        });
+        }
 
-        // Tiled Wrap View Logic
-        document.getElementById('btn-tiled-view').addEventListener('click', () => {
-            fsOverlay.classList.add('active');
-            fsOverlay.dataset.mode = 'tiled';
-            document.getElementById('fs-title').innerText = 'Tiled Wrap-Around View';
-            
-            // Render tiled K-map into fullscreen content
-            Tiled.renderTiledKMap(fsContent, (idx) => {
-                state.setData(idx, (state.stateData[idx] + 1) % 3);
-            });
-            
-            // Draw SVGs immediately
-            setTimeout(() => Tiled.drawTiledSVGs(state.currentSolutionMap, fsContent), 50);
-        });
-
-        document.getElementById('btn-close-fs').addEventListener('click', () => {
-            fsOverlay.classList.remove('active');
-            fsOverlay.removeAttribute('data-mode');
-            // Re-render main view to ensure sync
-            setTimeout(() => {
-                Grid.renderGrids(mapsWrapper, (idx) => {
+        const btnTiled = document.getElementById('btn-tiled-view');
+        if (btnTiled) {
+            btnTiled.addEventListener('click', () => {
+                fsOverlay.classList.add('active');
+                fsOverlay.dataset.mode = 'tiled';
+                document.getElementById('fs-title').innerText = 'Tiled Wrap-Around View';
+                
+                Tiled.renderTiledKMap(fsContent, (idx) => {
                     state.setData(idx, (state.stateData[idx] + 1) % 3);
                 });
-                solveAndRender();
-            }, 200);
-        });
+                
+                setTimeout(() => Tiled.drawTiledSVGs(state.currentSolutionMap, fsContent), 50);
+            });
+        }
+
+        const btnCloseFs = document.getElementById('btn-close-fs');
+        if (btnCloseFs) {
+            btnCloseFs.addEventListener('click', () => {
+                fsOverlay.classList.remove('active');
+                fsOverlay.removeAttribute('data-mode');
+                setTimeout(() => {
+                    Grid.renderGrids(mapsWrapper, (idx) => {
+                        state.setData(idx, (state.stateData[idx] + 1) % 3);
+                    });
+                    solveAndRender();
+                }, 200);
+            });
+        }
 
         window.addEventListener('resize', () => {
             if (state.practiceMode) {
@@ -181,10 +268,10 @@
             }
         });
 
-        // Initialize inputs management
+        // 8. Initialize Input Sync
         Inputs.initInputs();
 
-        // SOP/POS toggles
+        // 9. SOP / POS toggles
         const optSop = document.getElementById('opt-sop');
         const optPos = document.getElementById('opt-pos');
 
@@ -210,7 +297,7 @@
             updateToggleButtons();
         }
 
-        // Practice Mode Toggle
+        // 10. Practice Mode
         const practiceToggleBtn = document.getElementById('practice-toggle');
         if (practiceToggleBtn) {
             practiceToggleBtn.addEventListener('click', () => {
@@ -222,7 +309,13 @@
             });
         }
 
-        // Difficulty selection / Custom PYQ file upload hooks
+        const practiceGenBtn = document.getElementById('practice-generate-btn');
+        if (practiceGenBtn) {
+            practiceGenBtn.addEventListener('click', () => {
+                Practice.generateChallenge();
+            });
+        }
+
         const difficultySelect = document.getElementById('practice-difficulty');
         const pyqLoadBtn = document.getElementById('pyq-load-btn');
         const pyqFileInput = document.getElementById('pyq-file-input');
@@ -253,10 +346,10 @@
                             if (Array.isArray(parsed) && parsed.length > 0) {
                                 window.KMapCustomProblems = parsed;
                                 window.KMapCustomProblemsIndex = 0;
-                                alert(`Successfully loaded ${parsed.length} custom PYQ problems!`);
+                                Export.showToast(`Loaded ${parsed.length} custom PYQs!`);
                                 Practice.generateChallenge();
                             } else {
-                                alert("Invalid file format: JSON must be a non-empty array of problems.");
+                                alert("Invalid JSON: Expected non-empty array of problem objects.");
                             }
                         } catch (err) {
                             alert("Error parsing JSON: " + err.message);
@@ -267,16 +360,27 @@
             });
         }
 
-        // Initialize practice event listeners
         Practice.setupPracticeEventListeners();
         Practice.setupPracticeModalListeners();
 
-        // Initial state data setup
-        state.init(2);
+        // 11. Hydrate state from URL hash or default
+        const loadedFromHash = state.loadFromHash();
+        if (!loadedFromHash) {
+            state.init(2);
+        } else {
+            // Update active Var button to match N
+            document.querySelectorAll('.var-btn').forEach(btn => {
+                if (parseInt(btn.getAttribute('data-vars'), 10) === state.N) {
+                    btn.className = 'var-btn active px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm bg-white dark:bg-charcoal-card text-cream-text dark:text-charcoal-text border border-cream-border dark:border-charcoal-border transition-all';
+                } else {
+                    btn.className = 'var-btn px-3 py-1.5 text-xs font-semibold rounded-md text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text transition-all';
+                }
+            });
+            updateToggleButtons();
+        }
+
         Grid.renderGrids(mapsWrapper, (idx) => {
-            if (state.practiceMode) {
-                // Clicks handled by practice.js listeners
-            } else {
+            if (!state.practiceMode) {
                 state.setData(idx, (state.stateData[idx] + 1) % 3);
             }
         });

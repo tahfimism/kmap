@@ -1,0 +1,21 @@
+{
+  "name": "logic-routine-kmap",
+  "version": "2.0.0",
+  "description": "Interactive, concept-driven Karnaugh Map minimizer & Boolean logic pedagogical learning tool.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./css/style.css --minify",
+    "watch:css": "tailwindcss -i ./src/input.css -o ./css/style.css --watch"
+  },
+  "keywords": [
+    "karnaugh-map",
+    "boolean-algebra",
+    "quine-mccluskey",
+    "digital-logic",
+    "circuit-simulator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

@@ -1,4 +1,41 @@
 (function() {
+    let worker = null;
+    let reqId = 0;
+    const pendingCallbacks = new Map();
+
+    // Try initializing Web Worker gracefully
+    try {
+        if (typeof Worker !== 'undefined') {
+            worker = new Worker('js/solver-worker.js');
+            worker.onmessage = function(e) {
+                const { id, result } = e.data;
+                if (pendingCallbacks.has(id)) {
+                    const cb = pendingCallbacks.get(id);
+                    pendingCallbacks.delete(id);
+                    cb(result);
+                }
+            };
+            worker.onerror = function() {
+                // If local security policies block local worker file, gracefully fallback
+                worker = null;
+            };
+        }
+    } catch (e) {
+        worker = null;
+    }
+
+    function solveAsync(stateData, N, exprType, callback) {
+        if (worker) {
+            const id = ++reqId;
+            pendingCallbacks.set(id, callback);
+            worker.postMessage({ id, stateData, N, exprType });
+        } else {
+            // Immediate synchronous calculation fallback
+            const res = exprType === 'POS' ? solveQMPOS(stateData, N) : solveQM(stateData, N);
+            callback(res);
+        }
+    }
+
     function solveQM(stateData, N) {
         let minterms = [];
         let dontcares = [];
@@ -115,6 +152,7 @@
     window.KMapSolver = {
         solveQM,
         solveQMPOS,
+        solveAsync,
         covers
     };
 })();

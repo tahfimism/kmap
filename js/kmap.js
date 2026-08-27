@@ -1,4 +1,8 @@
 (function() {
+    let currentHoveredCell = null;
+    let focusedCellIndex = 0;
+    let isPainting = false;
+
     function getCoords(val, N) {
         const gray4 = window.KMapState.gray4;
         if (N === 2) return { g: 0, r: (val >> 1) & 1, c: val & 1 };
@@ -13,6 +17,23 @@
             if (coords.g === g && coords.r === r && coords.c === c) return i;
         }
         return 0;
+    }
+
+    function applyBrush(valIndex) {
+        let state = window.KMapState;
+        if (state.practiceMode) return;
+        
+        let brush = state.brushMode || 'click';
+        if (brush === 'paint_1') {
+            state.setData(valIndex, 1);
+        } else if (brush === 'paint_0') {
+            state.setData(valIndex, 0);
+        } else if (brush === 'paint_x') {
+            state.setData(valIndex, 2);
+        } else {
+            // cycle
+            state.setData(valIndex, (state.stateData[valIndex] + 1) % 3);
+        }
     }
 
     function renderGrids(container, onCellClick) {
@@ -31,7 +52,7 @@
         let sideVar = N <= 3 ? 'A' : (N === 4 ? 'AB' : 'BC');
 
         for (let g = 0; g < numGrids; g++) {
-            let gridHtml = `<div class="relative inline-block kmap-grid-container" data-g="${g}">`;
+            let gridHtml = `<div class="relative inline-block kmap-grid-container select-none" data-g="${g}">`;
             
             if (N === 5) {
                 gridHtml += `
@@ -41,7 +62,7 @@
                 `;
             }
 
-            gridHtml += `<table class="relative z-10 border-collapse bg-white dark:bg-charcoal-card rounded-xl overflow-hidden border border-cream-border dark:border-charcoal-border">`;
+            gridHtml += `<table class="relative z-10 border-collapse bg-white dark:bg-charcoal-card rounded-xl overflow-hidden border border-cream-border dark:border-charcoal-border shadow-sm">`;
             
             gridHtml += `<thead><tr>`;
             gridHtml += `<th class="relative w-16 h-14 bg-neutral-50 dark:bg-neutral-900 border-b border-r border-cream-border dark:border-charcoal-border">
@@ -63,9 +84,11 @@
                     else if (N === 4) valIndex = (state.gray4[r] << 2) | state.gray4[c];
                     else if (N === 5) valIndex = (g << 4) | (state.gray4[r] << 2) | state.gray4[c];
 
-                    let stateVal = state.stateData[valIndex];
+                    let stateVal = state.stateData[valIndex] || 0;
                     let text = stateVal === 2 ? 'X' : stateVal;
-                    gridHtml += `<td class="kmap-cell val-${text}" data-val="${valIndex}">${text}</td>`;
+                    let isFirstCell = (valIndex === 0);
+                    let pulseDotHtml = isFirstCell ? `<span class="pulse-guide-dot absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent animate-ping hidden"></span>` : '';
+                    gridHtml += `<td class="kmap-cell relative val-${text}" data-val="${valIndex}" tabindex="0">${text}${pulseDotHtml}</td>`;
                 }
                 gridHtml += `</tr>`;
             }
@@ -77,15 +100,97 @@
             container.insertAdjacentHTML('beforeend', gridHtml);
         }
 
-        bindCellClicks(container, onCellClick);
+        bindInteractions(container, onCellClick);
+        updateEmptyStateWatermark();
     }
 
-    function bindCellClicks(container, onCellClick) {
+    function bindInteractions(container, onCellClick) {
         container.querySelectorAll('.kmap-cell').forEach(cell => {
-            cell.addEventListener('click', function() {
-                let valIndex = parseInt(this.getAttribute('data-val'));
-                onCellClick(valIndex);
+            let valIndex = parseInt(cell.getAttribute('data-val'));
+            
+            cell.addEventListener('mouseenter', function() {
+                currentHoveredCell = valIndex;
+                if (isPainting && window.KMapState.brushMode !== 'click') {
+                    applyBrush(valIndex);
+                }
             });
+
+            cell.addEventListener('mouseleave', function() {
+                if (currentHoveredCell === valIndex) {
+                    currentHoveredCell = null;
+                }
+            });
+
+            cell.addEventListener('mousedown', function(e) {
+                if (window.KMapState.practiceMode) return;
+                isPainting = true;
+                applyBrush(valIndex);
+            });
+
+            cell.addEventListener('focus', function() {
+                focusedCellIndex = valIndex;
+                updateFocusRing();
+            });
+        });
+    }
+
+    // Window global mouse and keyboard hooks
+    window.addEventListener('mouseup', () => {
+        isPainting = false;
+    });
+
+    window.addEventListener('keydown', (e) => {
+        let state = window.KMapState;
+        if (state.practiceMode) return;
+
+        // Target cell: active hovered cell or focused cell
+        let targetIdx = (currentHoveredCell !== null) ? currentHoveredCell : focusedCellIndex;
+        if (targetIdx === null || targetIdx < 0 || targetIdx >= (1 << state.N)) return;
+
+        // Keystroke value setting
+        if (e.key === '0') {
+            state.setData(targetIdx, 0);
+        } else if (e.key === '1') {
+            state.setData(targetIdx, 1);
+        } else if (e.key.toLowerCase() === 'x') {
+            state.setData(targetIdx, 2);
+        } else if (e.key === ' ' || e.key === 'Enter') {
+            applyBrush(targetIdx);
+            e.preventDefault();
+        } else if (e.key.startsWith('Arrow')) {
+            navigateFocus(e.key);
+            e.preventDefault();
+        }
+    });
+
+    function navigateFocus(arrowKey) {
+        let state = window.KMapState;
+        let N = state.N;
+        let coords = getCoords(focusedCellIndex, N);
+        let rows = N <= 3 ? 2 : 4;
+        let cols = N === 2 ? 2 : 4;
+        
+        let r = coords.r;
+        let c = coords.c;
+        let g = coords.g;
+
+        if (arrowKey === 'ArrowUp') r = (r - 1 + rows) % rows;
+        if (arrowKey === 'ArrowDown') r = (r + 1) % rows;
+        if (arrowKey === 'ArrowLeft') c = (c - 1 + cols) % cols;
+        if (arrowKey === 'ArrowRight') c = (c + 1) % cols;
+
+        focusedCellIndex = findValByIndex(g, r, c, N);
+        updateFocusRing();
+    }
+
+    function updateFocusRing() {
+        document.querySelectorAll('.kmap-cell').forEach(cell => {
+            let idx = parseInt(cell.getAttribute('data-val'));
+            if (idx === focusedCellIndex) {
+                cell.classList.add('ring-2', 'ring-accent', 'ring-offset-1', 'z-30');
+            } else {
+                cell.classList.remove('ring-2', 'ring-accent', 'ring-offset-1', 'z-30');
+            }
         });
     }
 
@@ -95,8 +200,47 @@
             let valIndex = parseInt(cell.getAttribute('data-val'));
             let stateVal = state.stateData[valIndex];
             let text = stateVal === 2 ? 'X' : stateVal;
-            cell.innerText = text;
-            cell.className = `kmap-cell val-${text}`;
+            // Preserve child pulse dot on m0
+            let isFirst = (valIndex === 0);
+            let pulseDot = isFirst ? `<span class="pulse-guide-dot absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent animate-ping hidden"></span>` : '';
+            cell.innerHTML = `${text}${pulseDot}`;
+            cell.className = `kmap-cell relative val-${text}`;
+        });
+        updateEmptyStateWatermark();
+    }
+
+    function updateEmptyStateWatermark() {
+        let state = window.KMapState;
+        let isAllZero = state.stateData && state.stateData.every(v => v === 0);
+        let statusEl = document.getElementById('status-bar-text');
+        let pulseDot = document.querySelector('.pulse-guide-dot');
+
+        if (statusEl) {
+            if (isAllZero) {
+                statusEl.innerText = "STATUS // AWAITING INPUT — Press 0, 1, X or Click";
+                statusEl.classList.add('animate-pulse');
+            } else {
+                statusEl.innerText = "STATUS // ACTIVE CALCULATION";
+                statusEl.classList.remove('animate-pulse');
+            }
+        }
+
+        if (pulseDot) {
+            if (isAllZero) pulseDot.classList.remove('hidden');
+            else pulseDot.classList.add('hidden');
+        }
+    }
+
+    function highlightCell(idx) {
+        let cell = document.querySelector(`.kmap-cell[data-val="${idx}"]`);
+        if (cell) {
+            cell.classList.add('ring-4', 'ring-accent/80', 'scale-105', 'z-30', 'transition-transform');
+        }
+    }
+
+    function unhighlightCell() {
+        document.querySelectorAll('.kmap-cell').forEach(cell => {
+            cell.classList.remove('ring-4', 'ring-accent/80', 'scale-105', 'z-30');
         });
     }
 
@@ -104,7 +248,9 @@
         getCoords,
         findValByIndex,
         renderGrids,
-        bindCellClicks,
-        updateCellVisuals
+        updateCellVisuals,
+        updateEmptyStateWatermark,
+        highlightCell,
+        unhighlightCell
     };
 })();

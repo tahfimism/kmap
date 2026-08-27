@@ -1,5 +1,4 @@
 (function() {
-    // Convert a prime implicant string (like '01--') to a plain-text expression (e.g. A'B or (A + B'))
     function piToPlainExpression(pi, N, isPOS = false) {
         const varNames = window.KMapState.varNames;
         if (!pi.includes('0') && !pi.includes('1')) {
@@ -28,7 +27,6 @@
         }
     }
 
-    // Tokenizer for simple boolean expressions
     function tokenize(str) {
         let tokens = [];
         let i = 0;
@@ -72,7 +70,6 @@
         return tokens;
     }
 
-    // Simple recursive-descent Parser that evaluates boolean values directly on a context
     class Parser {
         constructor(tokens, context) {
             this.tokens = tokens;
@@ -149,7 +146,6 @@
         }
     }
 
-    // Parse comma-separated list of terms
     function parseTermList(str, maxVal) {
         if (!str || !str.trim()) return [];
         return str.split(',')
@@ -159,7 +155,6 @@
             .filter(val => !isNaN(val) && val >= 0 && val < maxVal);
     }
 
-    // Synchronize all input panels based on the current state data
     function syncInputPanels() {
         let state = window.KMapState;
         let N = state.N;
@@ -204,7 +199,6 @@
         }
     }
 
-    // Render dynamic truth table
     function renderTruthTable() {
         const ttContainer = document.getElementById('tab-truthtable');
         if (!ttContainer) return;
@@ -223,21 +217,21 @@
         html += `</tr></thead><tbody>`;
         
         for (let row = 0; row < (1 << N); row++) {
-            html += `<tr class="border-b border-cream-border/50 dark:border-charcoal-border/30 hover:bg-neutral-50 dark:hover:bg-neutral-900/50">`;
+            html += `<tr class="tt-row border-b border-cream-border/50 dark:border-charcoal-border/30 hover:bg-neutral-100 dark:hover:bg-neutral-900/60 cursor-pointer transition-colors" data-row-idx="${row}">`;
             for (let i = 0; i < N; i++) {
                 let bit = (row >> (N - 1 - i)) & 1;
                 html += `<td class="py-1 px-2 font-mono text-[11px] text-cream-muted dark:text-charcoal-muted">${bit}</td>`;
             }
             
-            let val = stateData[row];
+            let val = stateData[row] || 0;
             let text = val === 2 ? 'X' : val;
             let btnClass = "";
-            if (val === 0) btnClass = "text-cream-muted dark:text-charcoal-muted hover:text-cream-text dark:hover:text-charcoal-text";
-            if (val === 1) btnClass = "text-cream-text dark:text-charcoal-text font-extrabold";
-            if (val === 2) btnClass = "text-accent font-bold";
+            if (val === 0) btnClass = "text-cream-muted dark:text-charcoal-muted";
+            if (val === 1) btnClass = "text-cream-text dark:text-charcoal-text font-extrabold text-accent";
+            if (val === 2) btnClass = "text-amber-500 font-bold";
             
             html += `<td class="py-0.5 px-2 text-right">
-                        <button class="tt-toggle-btn px-2.5 py-0.5 rounded border border-cream-border dark:border-charcoal-border bg-neutral-50/50 dark:bg-neutral-900/30 font-mono text-[11px] min-w-[28px] transition-all hover:bg-black/5 dark:hover:bg-white/5 ${btnClass}" data-idx="${row}">
+                        <button class="tt-toggle-btn px-2.5 py-0.5 rounded border border-cream-border dark:border-charcoal-border bg-neutral-50/50 dark:bg-neutral-900/30 font-mono text-[11px] min-w-[28px] transition-all hover:bg-accent/10 ${btnClass}" data-idx="${row}">
                             ${text}
                         </button>
                      </td>`;
@@ -246,8 +240,24 @@
         html += `</tbody></table>`;
         ttContainer.innerHTML = html;
         
+        // Bi-directional hover sync
+        ttContainer.querySelectorAll('.tt-row').forEach(tr => {
+            let idx = parseInt(tr.getAttribute('data-row-idx'));
+            tr.addEventListener('mouseenter', () => {
+                if (window.KMapGrid && window.KMapGrid.highlightCell) {
+                    window.KMapGrid.highlightCell(idx);
+                }
+            });
+            tr.addEventListener('mouseleave', () => {
+                if (window.KMapGrid && window.KMapGrid.unhighlightCell) {
+                    window.KMapGrid.unhighlightCell();
+                }
+            });
+        });
+
         ttContainer.querySelectorAll('.tt-toggle-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
                 let idx = parseInt(this.getAttribute('data-idx'));
                 let currentVal = state.stateData[idx];
                 let nextVal = (currentVal + 1) % 3;
@@ -256,7 +266,6 @@
         });
     }
 
-    // Wire up all input tab triggers and logic listeners
     function initInputs() {
         let state = window.KMapState;
         
@@ -279,8 +288,6 @@
                         panel.classList.add('hidden');
                     }
                 });
-                
-                // Sync when switching tabs to ensure freshness
                 syncInputPanels();
             });
         });
@@ -295,6 +302,7 @@
             let minterms = parseTermList(mintermsInput.value, maxVal);
             let dontcares = parseTermList(dontcaresInput.value, maxVal);
 
+            state.pushHistory();
             for (let i = 0; i < maxVal; i++) {
                 if (dontcares.includes(i)) {
                     state.stateData[i] = 2;
@@ -318,6 +326,7 @@
             if (!exprStr) return; 
 
             let tokens = tokenize(exprStr);
+            state.pushHistory();
             for (let row = 0; row < (1 << N); row++) {
                 let context = {};
                 for (let i = 0; i < N; i++) {
@@ -337,10 +346,7 @@
 
         if (expressionInput) expressionInput.addEventListener('input', handleExpressionInput);
 
-        // 4. Subscribe to state changes for synchronizing
         state.subscribe(syncInputPanels);
-        
-        // Initial sync
         syncInputPanels();
     }
 

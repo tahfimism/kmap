@@ -1,5 +1,4 @@
 (function() {
-    // Helper to find cells covered by a PI
     function getCoveredCells(pi, N) {
         let cells = [];
         for (let i = 0; i < (1 << N); i++) {
@@ -18,7 +17,112 @@
         return cells;
     }
 
+    function togglePlayback() {
+        const state = window.KMapState;
+        const sol = state.currentSolutionMap || [];
+        if (sol.length === 0) return;
+
+        if (state.playbackTimer) {
+            clearInterval(state.playbackTimer);
+            state.playbackTimer = null;
+            updatePlaybackControls();
+            return;
+        }
+
+        if (state.playbackStep === null || state.playbackStep >= sol.length - 1) {
+            state.playbackStep = -1;
+        }
+
+        state.playbackTimer = setInterval(() => {
+            if (state.playbackStep === null) state.playbackStep = -1;
+            state.playbackStep++;
+            if (state.playbackStep >= sol.length) {
+                clearInterval(state.playbackTimer);
+                state.playbackTimer = null;
+                state.playbackStep = null; // show all
+            }
+            state.notify();
+        }, 1200);
+
+        state.notify();
+    }
+
+    function stepPrev() {
+        const state = window.KMapState;
+        const sol = state.currentSolutionMap || [];
+        if (sol.length === 0) return;
+        if (state.playbackTimer) {
+            clearInterval(state.playbackTimer);
+            state.playbackTimer = null;
+        }
+        if (state.playbackStep === null) {
+            state.playbackStep = sol.length - 1;
+        }
+        state.playbackStep = Math.max(0, state.playbackStep - 1);
+        state.notify();
+    }
+
+    function stepNext() {
+        const state = window.KMapState;
+        const sol = state.currentSolutionMap || [];
+        if (sol.length === 0) return;
+        if (state.playbackTimer) {
+            clearInterval(state.playbackTimer);
+            state.playbackTimer = null;
+        }
+        if (state.playbackStep === null) {
+            state.playbackStep = 0;
+        } else {
+            state.playbackStep = Math.min(sol.length - 1, state.playbackStep + 1);
+        }
+        state.notify();
+    }
+
+    function stepAll() {
+        const state = window.KMapState;
+        if (state.playbackTimer) {
+            clearInterval(state.playbackTimer);
+            state.playbackTimer = null;
+        }
+        state.playbackStep = null;
+        state.notify();
+    }
+
+    function updatePlaybackControls() {
+        const state = window.KMapState;
+        const sol = state.currentSolutionMap || [];
+        const container = document.getElementById('playback-controls');
+        if (!container) return;
+
+        if (sol.length <= 1) {
+            container.classList.add('hidden');
+            return;
+        }
+        container.classList.remove('hidden');
+
+        const isPlaying = !!state.playbackTimer;
+        const currentStepText = state.playbackStep === null 
+            ? `Showing All (${sol.length} Loops)`
+            : `Step ${state.playbackStep + 1} of ${sol.length}`;
+
+        container.innerHTML = `
+            <div class="flex items-center justify-between bg-neutral-100 dark:bg-neutral-800/60 p-2 rounded-xl border border-cream-border dark:border-charcoal-border text-xs mb-3">
+                <div class="flex items-center gap-1.5">
+                    <button onclick="window.KMapTutorial.stepPrev()" class="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md font-bold text-neutral-600 dark:text-neutral-300 transition-colors" title="Previous Loop">⏮</button>
+                    <button onclick="window.KMapTutorial.togglePlayback()" class="px-2.5 py-1 bg-accent text-white font-bold rounded-lg shadow-sm hover:brightness-110 transition-all flex items-center gap-1">
+                        ${isPlaying ? '⏸ Pause' : '▶ Play Timeline'}
+                    </button>
+                    <button onclick="window.KMapTutorial.stepNext()" class="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md font-bold text-neutral-600 dark:text-neutral-300 transition-colors" title="Next Loop">⏭</button>
+                    <button onclick="window.KMapTutorial.stepAll()" class="px-2 py-1 text-[10px] uppercase tracking-wider font-extrabold text-cream-muted dark:text-charcoal-muted hover:text-accent rounded-md">All</button>
+                </div>
+                <span class="font-mono font-bold text-accent">${currentStepText}</span>
+            </div>
+        `;
+    }
+
     function updateTutorial(PIs, EPIs, solutionMap, stateData, N, exprType) {
+        updatePlaybackControls();
+
         const container = document.getElementById('learning-notes');
         if (!container) return;
 
@@ -30,7 +134,6 @@
         const targetName = isPOS ? 'Maxterm' : 'Minterm';
         const targetVal = isPOS ? 0 : 1;
 
-        // Check for constant cases
         if (solutionMap.length === 0) {
             container.innerHTML = `
                 <div class="p-3 bg-neutral-50 dark:bg-neutral-900 border border-cream-border dark:border-charcoal-border rounded-xl">
@@ -82,7 +185,7 @@
             let expr = piToExpression(item.pi, N, isPOS);
             step2GroupsHtml += `
                 <div class="flex items-center justify-between p-2 rounded-lg border border-cream-border dark:border-charcoal-border hover:bg-neutral-50 dark:hover:bg-neutral-900/50 cursor-pointer transition-colors group"
-                     onmouseenter="window.highlightGroup(${idx})" onmouseleave="window.unhighlightGroup()">
+                     onmouseenter="window.KMapSVG.highlightGroup(${idx})" onmouseleave="window.KMapSVG.unhighlightGroup()">
                     <div class="flex items-center gap-2">
                         <div class="w-2.5 h-2.5 rounded-full shadow-sm" style="background-color: ${item.color}"></div>
                         <div>
@@ -102,7 +205,7 @@
                     <span class="font-extrabold uppercase tracking-widest text-[10px] text-cream-text dark:text-charcoal-text">Grouping Process</span>
                 </div>
                 <div class="pl-7 space-y-1.5">
-                    <p>We look for the largest rectangular blocks of adjacent cells (sizes 16, 8, 4, 2, 1) that cover all target cells, using Don't-Cares to expand groups where possible. Hover to highlight loops on the K-Map:</p>
+                    <p>We look for the largest rectangular blocks of adjacent cells (sizes 16, 8, 4, 2, 1) that cover all target cells. Hover to highlight loops on the K-Map:</p>
                     <div class="space-y-1">${step2GroupsHtml}</div>
                 </div>
             </div>
@@ -113,17 +216,13 @@
         PIs.forEach((pi) => {
             let cells = getCoveredCells(pi, N);
             let expr = piToExpression(pi, N, isPOS);
-            
-            // Find if this PI is in our final solution
             let solIdx = solutionMap.findIndex(item => item.pi === pi);
             let isInSolution = solIdx !== -1;
-            let borderClass = isInSolution 
-                ? `border-l-4 pl-2` 
-                : `border border-transparent pl-2 opacity-50`;
+            let borderClass = isInSolution ? `border-l-4 pl-2` : `border border-transparent pl-2 opacity-50`;
             let borderStyle = isInSolution ? `border-left-color: ${solutionMap[solIdx].color}` : '';
 
             let hoverAttrs = isInSolution
-                ? `onmouseenter="window.highlightGroup(${solIdx})" onmouseleave="window.unhighlightGroup()"`
+                ? `onmouseenter="window.KMapSVG.highlightGroup(${solIdx})" onmouseleave="window.KMapSVG.unhighlightGroup()"`
                 : '';
 
             step3PIsHtml += `
@@ -173,7 +272,7 @@
                 let expr = piToExpression(item.pi, N, isPOS);
                 epiReasoningHtml += `
                     <div class="p-2 rounded-lg bg-accent/5 border border-accent/10 text-[11px] cursor-pointer hover:bg-accent/10 transition-colors"
-                         onmouseenter="window.highlightGroup(${idx})" onmouseleave="window.unhighlightGroup()">
+                         onmouseenter="window.KMapSVG.highlightGroup(${idx})" onmouseleave="window.KMapSVG.unhighlightGroup()">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${item.color}"></div>
                             <span class="font-bold text-accent">${expr}</span>
@@ -186,13 +285,13 @@
                 let expr = piToExpression(item.pi, N, isPOS);
                 epiReasoningHtml += `
                     <div class="p-2 rounded-lg bg-neutral-100/50 dark:bg-neutral-800/40 border border-cream-border dark:border-charcoal-border text-[11px] cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/70 transition-colors"
-                         onmouseenter="window.highlightGroup(${idx})" onmouseleave="window.unhighlightGroup()">
+                         onmouseenter="window.KMapSVG.highlightGroup(${idx})" onmouseleave="window.KMapSVG.unhighlightGroup()">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${item.color}"></div>
                             <span class="font-bold text-cream-text dark:text-charcoal-text">${expr}</span>
                             <span class="text-[9px] uppercase tracking-widest text-neutral-400 font-semibold px-1 rounded bg-neutral-100 dark:bg-neutral-800">Coverage Only</span>
                         </div>
-                        <p class="text-neutral-500">All cells covered by this group are also covered by other prime implicants. It is selected to complete the cover of remaining cells: <span class="font-bold text-cream-text dark:text-charcoal-text font-mono">{${targetCellsInPI.join(', ')}}</span>.</p>
+                        <p class="text-neutral-500">Selected to complete the cover of remaining cells: <span class="font-bold text-cream-text dark:text-charcoal-text font-mono">{${targetCellsInPI.join(', ')}}</span>.</p>
                     </div>
                 `;
             }
@@ -211,7 +310,7 @@
             </div>
         `;
 
-        // Step 5: Writing the expression (elimination explanation)
+        // Step 5: Writing the expression
         let step5ExplainHtml = '';
         solutionMap.forEach((item, idx) => {
             let pi = item.pi;
@@ -225,13 +324,11 @@
                     eliminatedList.push(vName);
                 } else {
                     if (isPOS) {
-                        // POS: 0 means normal, 1 means complemented
                         let representation = pi[i] === '0' ? vName : `${vName}'`;
-                        constantList.push(`${vName} = ${pi[i]} (represented as <span class="font-bold">${representation}</span>)`);
+                        constantList.push(`${vName} = ${pi[i]} (<span class="font-bold">${representation}</span>)`);
                     } else {
-                        // SOP: 1 means normal, 0 means complemented
                         let representation = pi[i] === '1' ? vName : `${vName}'`;
-                        constantList.push(`${vName} = ${pi[i]} (represented as <span class="font-bold">${representation}</span>)`);
+                        constantList.push(`${vName} = ${pi[i]} (<span class="font-bold">${representation}</span>)`);
                     }
                 }
             }
@@ -242,7 +339,7 @@
 
             step5ExplainHtml += `
                 <div class="p-2.5 rounded-xl border border-cream-border dark:border-charcoal-border bg-neutral-50/50 dark:bg-neutral-900/30 text-[11px] cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900/80 transition-colors"
-                     onmouseenter="window.highlightGroup(${idx})" onmouseleave="window.unhighlightGroup()">
+                     onmouseenter="window.KMapSVG.highlightGroup(${idx})" onmouseleave="window.KMapSVG.unhighlightGroup()">
                     <div class="flex items-center gap-2 mb-1">
                         <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${item.color}"></div>
                         <span class="font-extrabold text-base" style="color: ${item.color}">${expr}</span>
@@ -263,7 +360,7 @@
                     <span class="font-extrabold uppercase tracking-widest text-[10px] text-cream-text dark:text-charcoal-text">Final Equation Minimization</span>
                 </div>
                 <div class="pl-7 space-y-1.5">
-                    <p>For each selected group, we translate its binary code to algebraic terms. Variables that remain constant are kept, while variables that change state are eliminated:</p>
+                    <p>For each selected group, we translate its binary code to algebraic terms:</p>
                     <div class="space-y-1.5">${step5ExplainHtml}</div>
                 </div>
             </div>
@@ -282,6 +379,10 @@
 
     window.KMapTutorial = {
         getCoveredCells,
-        updateTutorial
+        updateTutorial,
+        togglePlayback,
+        stepPrev,
+        stepNext,
+        stepAll
     };
 })();

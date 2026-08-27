@@ -24,11 +24,15 @@
         let Solver = window.KMapSolver;
         let N = state.N;
         
+        if (!wrapperEl) return;
+
         wrapperEl.querySelectorAll('.svg-overlay').forEach(svg => {
             svg.innerHTML = '';
             let table = svg.previousElementSibling;
-            svg.style.width = table.offsetWidth + 'px';
-            svg.style.height = table.offsetHeight + 'px';
+            if (table) {
+                svg.style.width = table.offsetWidth + 'px';
+                svg.style.height = table.offsetHeight + 'px';
+            }
         });
 
         if (!solutionMap || (solutionMap.length === 1 && solutionMap[0].pi === '-'.repeat(N))) return;
@@ -36,6 +40,11 @@
         let allVals = Array.from({length: 1<<N}, (_, i) => i);
 
         solutionMap.forEach((item, idx) => {
+            // If in playback mode, filter loops past the current step
+            if (state.playbackStep !== null && idx > state.playbackStep) {
+                return;
+            }
+
             let coveredVals = allVals.filter(v => Solver.covers(item.pi, v.toString(2).padStart(N, '0')));
             let gridsUsed = [0, 1].map(g => coveredVals.filter(v => Grid.getCoords(v, N).g === g));
 
@@ -46,6 +55,7 @@
                 if (!container) return;
                 let svg = container.querySelector('.svg-overlay');
                 let table = container.querySelector('table');
+                if (!svg || !table) return;
 
                 let activeRows = [...new Set(valsInGrid.map(v => Grid.getCoords(v, N).r))];
                 let activeCols = [...new Set(valsInGrid.map(v => Grid.getCoords(v, N).c))];
@@ -53,8 +63,9 @@
                 let rowSegs = getSegments(activeRows);
                 let colSegs = getSegments(activeCols);
 
+                let isWrapping = rowSegs.length > 1 || colSegs.length > 1;
                 let insetBase = 4;
-                let inset = insetBase + (idx * 3); 
+                let inset = insetBase + (idx * 3.5); 
 
                 rowSegs.forEach(rs => {
                     colSegs.forEach(cs => {
@@ -80,13 +91,17 @@
                             rect.setAttribute("width", w);
                             rect.setAttribute("height", h);
                             
-                            rect.setAttribute("rx", "8");
+                            rect.setAttribute("rx", "6");
                             rect.setAttribute("fill", item.color);
-                            rect.setAttribute("fill-opacity", "0.08");
+                            rect.setAttribute("fill-opacity", "0.06");
                             rect.setAttribute("stroke", item.color);
-                            rect.setAttribute("stroke-width", "3");
-                            rect.setAttribute("class", `svg-loop loop-${idx} transition-all duration-[220ms] ease-spring`);
+                            rect.setAttribute("stroke-width", "2");
 
+                            if (isWrapping) {
+                                rect.setAttribute("stroke-dasharray", "6,4");
+                            }
+
+                            rect.setAttribute("class", `svg-loop loop-${idx} transition-all duration-[220ms] ease-spring`);
                             svg.appendChild(rect);
                         }
                     });
@@ -95,7 +110,33 @@
         });
     }
 
+    function highlightGroup(idx, isolate = true) {
+        document.querySelectorAll('.svg-loop').forEach(el => {
+            if (el.classList.contains(`loop-${idx}`)) {
+                el.setAttribute("stroke-width", "4");
+                el.setAttribute("fill-opacity", "0.22");
+                el.setAttribute("stroke-opacity", "1");
+            } else if (isolate) {
+                el.setAttribute("stroke-opacity", "0.12");
+                el.setAttribute("fill-opacity", "0.01");
+            }
+        });
+    }
+
+    function unhighlightGroup() {
+        document.querySelectorAll('.svg-loop').forEach(el => {
+            el.setAttribute("stroke-width", "2");
+            el.setAttribute("stroke-opacity", "1");
+            el.setAttribute("fill-opacity", "0.06");
+        });
+    }
+
+    window.highlightGroup = highlightGroup;
+    window.unhighlightGroup = unhighlightGroup;
+
     window.KMapSVG = {
-        drawSVGs
+        drawSVGs,
+        highlightGroup,
+        unhighlightGroup
     };
 })();
