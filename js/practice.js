@@ -212,7 +212,7 @@
         }
 
         let difficultySelect = document.getElementById('practice-difficulty');
-        let mode = difficultySelect ? difficultySelect.value : 'easy';
+        let mode = difficultySelect ? difficultySelect.value : 'redundancy';
 
         let targetMinterms = [];
         let targetDontCares = [];

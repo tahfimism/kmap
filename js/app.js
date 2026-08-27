@@ -87,11 +87,25 @@
             });
         }
 
-        // Theme toggle
+        // Theme initialization and toggle (Dark Mode Default)
+        try {
+            const savedTheme = localStorage.getItem('kmap_theme');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        } catch(e) {
+            document.documentElement.classList.add('dark');
+        }
+
         const themeBtn = document.getElementById('theme-toggle');
         if (themeBtn) {
             themeBtn.addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.toggle('dark');
+                try {
+                    localStorage.setItem('kmap_theme', isDark ? 'dark' : 'light');
+                } catch(e) {}
                 setTimeout(() => {
                     if (state.practiceMode) {
                         Practice.drawPracticeSVGs(mapsWrapper);
