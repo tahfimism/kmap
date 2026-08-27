@@ -77,8 +77,17 @@
         let Tiled = window.KMapTiled;
         let Practice = window.KMapPractice;
         let Export = window.KMapExport;
+        let Tour = window.KMapTour;
 
-        // 1. Theme toggle
+        // 1. Tour / Interactive Guide
+        const tourBtn = document.getElementById('btn-start-tour');
+        if (tourBtn && Tour) {
+            tourBtn.addEventListener('click', () => {
+                Tour.start();
+            });
+        }
+
+        // Theme toggle
         const themeBtn = document.getElementById('theme-toggle');
         if (themeBtn) {
             themeBtn.addEventListener('click', () => {
@@ -385,5 +394,10 @@
             }
         });
         solveAndRender();
+
+        // 12. Auto-start onboarding guide on first visit
+        if (Tour) {
+            Tour.autoStart();
+        }
     });
 })();
